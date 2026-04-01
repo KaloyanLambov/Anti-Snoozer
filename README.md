@@ -1,4 +1,4 @@
-# Math Alarm Clock  
+# Anti-Snoozer 
 **A Python app that forces you to solve arithmetic problems before you can dismiss your alarm**
 
 ---
@@ -47,9 +47,9 @@ This one forces you to **exercise your brain**.
 git clone https://github.com/KaloyanLambov/Anti-Snoozer
 cd Anti-Snoozer
 
-# Optional: create a virtual environment
+# Optional: create and run a virtual environment
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+venv\Scripts\activate
 
 # Install optional dependency for nicer sound (pygame)
 pip install -r requirements.txt
@@ -106,7 +106,7 @@ The chosen difficulty appears next to the alarm time in both the status bar and 
 4. **Answer Checking**  
    Three consecutive correct answers are required. Any wrong answer resets the streak and shakes the window.
 
-All logic lives in a single Python file – no external config or database is needed.
+No external config or database is needed.
 
 ---
 
