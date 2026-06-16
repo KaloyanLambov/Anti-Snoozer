@@ -53,7 +53,9 @@ git clone https://github.com/KaloyanLambov/Anti-Snoozer
 cd Anti-Snoozer
 
 # Optional: create and run a virtual environment
+# Optional: create and run a virtual environment
 python -m venv .venv
+venv\Scripts\activate
 venv\Scripts\activate
 
 # Install dependencies (pygame for sound, TensorFlow + Pillow + NumPy for the handwriting OCR)
