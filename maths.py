@@ -3,6 +3,7 @@ import math
 import os
 import sys
 import tkinter as tk
+from digit_canvas import DigitCanvas
 from tkinter import ttk, messagebox
 from sound import SoundEngine
 
@@ -61,33 +62,39 @@ class MathWindow(tk.Toplevel):
         self._progress_label.pack(pady=(0, 30))
 
         # ── Problem display ──
-        self._question_label = tk.Label(
+        self._equation_label = tk.Label(
             outer, text="",
-            font=("Courier New", 62, "bold"),
-            fg="#ffffff", bg="#0d0d14"
+            font=("Courier New", 56, "bold"),
+            fg="#ffffff", bg="#0d0d14",
         )
-        self._question_label.pack(pady=20)
+        self._equation_label.pack(pady=(20, 4))
 
-        # ── Answer entry ──
-        entry_frame = tk.Frame(outer, bg="#1a1a2e", bd=0)
-        entry_frame.pack(pady=10)
-
-        self._answer_var = tk.StringVar()
-        self._entry = tk.Entry(
-            entry_frame,
-            textvariable=self._answer_var,
-            font=("Courier New", 36, "bold"),
-            width=8,
-            justify="center",
-            fg="#00ffaa",
-            bg="#1a1a2e",
-            insertbackground="#00ffaa",
-            relief="flat",
-            bd=0,
+        self._instruction_label = tk.Label(
+            outer, text="",
+            font=("Courier New", 16),
+            fg="#7c6aff", bg="#0d0d14",
         )
-        self._entry.pack(ipady=14, ipadx=10)
-        self._entry.bind("<Return>", lambda e: self._check_answer())
-        self._entry.focus_set()
+        self._instruction_label.pack(pady=(0, 16))
+
+        # ── Drawing canvas (replaces Entry) ──
+        tk.Label(
+            outer, text="Draw the answer below:",
+            font=("Courier New", 12),
+            fg="#888", bg="#0d0d14"
+        ).pack()
+
+        self._digit_canvas = DigitCanvas(outer, size=200, brush=14)
+        self._digit_canvas.pack(pady=8)
+
+        clear_btn = tk.Button(
+            outer, text="Clear",
+            command=self._digit_canvas.clear,
+            font=("Courier New", 11),
+            fg="#888", bg="#1a1a2e",
+            relief="flat", cursor="hand2",
+            padx=10, pady=4,
+        )
+        clear_btn.pack()
 
         # ── Feedback label ──
         self._feedback = tk.Label(
@@ -123,40 +130,57 @@ class MathWindow(tk.Toplevel):
     # ── Logic ────────────────────────────────────
 
     def _new_question(self):
-        question, answer = self._engine.generate()
+        equation_string, instruction_string, answer = self._engine.generate()
         self._current_answer = answer
-        self._question_label.config(text=question)
-        self._answer_var.set("")
+        self._equation_label.config(text=equation_string)
+        self._instruction_label.config(text=instruction_string)
+        self._digit_canvas.clear()          # ← add this line
         remaining = self.REQUIRED_CORRECT - self._correct_streak
         self._progress_label.config(
             text=f"Solve {remaining} more problem{'s' if remaining != 1 else ''} correctly to silence the alarm",
             fg="#888"
         )
         self._feedback.config(text="")
-        self._entry.focus_set()
 
     def _check_answer(self):
-        raw = self._answer_var.get().strip()
-        if not raw:
-            return
-        try:
-            given = int(raw)
-        except ValueError:
-            self._show_feedback("Numbers only! Try again.", success=False)
+        if self._digit_canvas.is_blank():
+            self._show_feedback("Draw a number first!", success=False)
             return
 
-        if given == self._current_answer:
+        predicted = self._digit_canvas.predict()
+
+        if predicted is None:
+            self._show_feedback("Couldn't read that — try again.", success=False)
+            return
+
+        # For multi-digit answers (e.g. answer is 12), the user draws one digit
+        # at a time. But MNIST only reads single digits, so you have two choices:
+        #
+        # OPTION A (simple): constrain MathChallenge to only produce single-digit
+        #   answers (see Phase 5). This is the recommended approach.
+        #
+        # OPTION B (advanced): collect drawn digits sequentially and concatenate.
+        #   Not covered here — stick with Option A for now.
+
+        if predicted == self._current_answer:
             self._correct_streak += 1
+            self._digit_canvas.clear()
             if self._correct_streak >= self.REQUIRED_CORRECT:
                 self._alarm_solved()
             else:
-                self._show_feedback(f"✓ Correct!  {self.REQUIRED_CORRECT - self._correct_streak} more to go…", success=True)
+                self._show_feedback(
+                    f"✓ Correct! {self.REQUIRED_CORRECT - self._correct_streak} more to go…",
+                    success=True
+                )
                 self.after(700, self._new_question)
         else:
-            self._correct_streak = 0          # reset on wrong answer
-            self._show_feedback(f"✗ Wrong!  (streak reset — try again)", success=False)
+            self._correct_streak = 0
+            self._show_feedback(
+                f"✗ Wrong! Model read '{predicted}'. (streak reset)",
+                success=False
+            )
             self._shake()
-            self._answer_var.set("")
+            self._digit_canvas.clear()
 
     def _show_feedback(self, msg, success=True):
         color = "#00ffaa" if success else "#ff4455"
@@ -203,14 +227,17 @@ class MathChallenge:
         self.difficulty = difficulty
 
     def generate(self):
-        """Return (question_string, answer_int)."""
+        """
+        Return (question_string, target_digit) where target_digit is the
+        digit (0-9) at a randomly chosen position of the full answer.
+        The question string tells the user which position to draw.
+        """
         cfg = self.DIFFICULTIES[self.difficulty]
-        op  = random.choice(cfg["ops"])
-        a   = random.randint(2, cfg["max_a"])
-        b   = random.randint(2, cfg["max_b"])
+        op = random.choice(cfg["ops"])
+        a = random.randint(2, cfg["max_a"])
+        b = random.randint(2, cfg["max_b"])
 
         if op == "÷":
-            # Guarantee clean integer division
             b = random.randint(2, 12)
             a = b * random.randint(2, cfg["max_b"] // b or 2)
             answer = a // b
@@ -218,10 +245,26 @@ class MathChallenge:
             answer = a * b
         elif op == "+":
             answer = a + b
-        else:   # "-"
+        else:  # "-"
             if b > a:
-                a, b = b, a   # keep answer positive
+                a, b = b, a
             answer = a - b
 
-        question = f"{a}  {op}  {b}  =  ?"
-        return question, answer
+        answer_str = str(answer)
+        num_digits = len(answer_str)
+
+        # Pick which digit position to ask for (1-indexed from the left)
+        position = random.randint(1, num_digits)
+        target_digit = int(answer_str[position - 1])
+
+        ordinal = self._ordinal(position)
+        equation_string = f"{a} {op} {b} = ?\n\n"
+
+        instruction_string = f"Draw the {ordinal} digit of the answer"
+
+        return equation_string, instruction_string, target_digit
+
+    @staticmethod
+    def _ordinal(n):
+        suffixes = {1: "1st", 2: "2nd", 3: "3rd"}
+        return suffixes.get(n, f"{n}th")

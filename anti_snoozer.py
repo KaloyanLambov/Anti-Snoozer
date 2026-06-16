@@ -4,6 +4,9 @@
 ║  Solve math problems to dismiss the alarm. No cheating!     ║
 ╚═════════════════════════════════════════════════════════════╝
 """
+import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import tkinter as tk
 from tkinter import messagebox
 import datetime
@@ -319,7 +322,7 @@ class AlarmClockApp(tk.Tk):
             return 0 <= h <= 23 and 0 <= m <= 59
         except ValueError:
             return False
-
+        
     def _center_window(self, w: int, h: int):
         self.update_idletasks()
         sw = self.winfo_screenwidth()

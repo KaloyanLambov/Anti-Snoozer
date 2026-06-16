@@ -1,1 +1,5 @@
 pygame
+tensorflow-cpu
+pillow
+numpy
+scipy
