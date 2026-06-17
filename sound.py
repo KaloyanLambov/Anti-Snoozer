@@ -41,7 +41,7 @@ class SoundEngine:
 
     def play_loop(self):
         """Start looping alarm sound."""
-        self.stop()                      # ← always stop any previous sound first
+        self.stop()                      # always stop any previous sound first
 
         if self._pygame_ok and self._sound_file:
             try:
@@ -64,7 +64,7 @@ class SoundEngine:
         """Stop all alarm sounds."""
         self._beeping = False
         if self._beep_thread is not None:
-            self._beep_thread.join(timeout=1.0)   # ← wait for old thread to actually exit
+            self._beep_thread.join(timeout=1.0)   # wait for old thread to actually exit
             self._beep_thread = None
         if self._pygame_ok:
             try:
@@ -82,11 +82,11 @@ class SoundEngine:
             import numpy as np
             sr = 44100
             beep_duration = 0.4
-            silence_duration = 0.3          # ← add a gap so it's not continuous
+            silence_duration = 0.3          # add a gap so it's not continuous
             t = np.linspace(0, beep_duration, int(sr * beep_duration), False)
             beep = (np.sin(2 * np.pi * 880 * t) * 32767).astype(np.int16)
             silence = np.zeros(int(sr * silence_duration), dtype=np.int16)
-            wave = np.concatenate([beep, silence])      # ← one cycle = beep + gap
+            wave = np.concatenate([beep, silence])      # one cycle = beep + gap
             stereo = np.column_stack([wave, wave])
             sound = self._pygame.sndarray.make_sound(stereo)
             sound.play(loops=-1)

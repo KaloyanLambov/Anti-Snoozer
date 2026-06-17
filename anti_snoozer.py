@@ -265,7 +265,7 @@ class AlarmClockApp(tk.Tk):
 
     def _cancel_alarm(self):
         if self._alarm_ringing:
-            return   # can't cancel while ringing — must solve it
+            return   # can't cancel while ringing
         self._alarm_active  = False
         self._alarm_ringing = False
         self._alarm_time    = None
